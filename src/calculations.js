@@ -31,6 +31,8 @@ export const defaultFormState = {
     annualDowntimeDays: 20,
     expectedTransportVolume: 420000,
     expectedTransportDays: 330,
+    vehicleCountMode: "calculated",
+    manualVehicleCount: 12,
     loadVolumeMode: "dimensions",
     cargoBoxLength: 8.6,
     cargoBoxWidth: 2.35,
@@ -73,9 +75,14 @@ export const defaultFormState = {
     depreciationYears: 4,
     driverCount: 12,
     driverSalary: 120000,
-    tonKmEnergy: 0.018,
+    technicianCount: 0,
+    technicianSalary: 0,
+    warehouseManagerCount: 0,
+    warehouseManagerSalary: 0,
+    laborRoles: [],
+    kmEnergyUse: 1.4,
     energyPrice: 1.1,
-    transportDistance: 55,
+    oneWayDistance: 55,
     repairHoursPerVisit: 10,
     repairUnitPrice: 180,
     repairFrequency: {
@@ -85,6 +92,7 @@ export const defaultFormState = {
       year4: 4,
     },
     tireUnitPrice: 4200,
+    tiresPerVehicle: 10,
     tireReplacementFrequency: {
       year1: 0.5,
       year2: 1,
@@ -95,6 +103,13 @@ export const defaultFormState = {
     managementSalary: 150000,
     facilityRent: 260000,
     officeSpend: 120000,
+    partsCostMode: "formula",
+    annualPartsDirectCost: {
+      year1: 0,
+      year2: 0,
+      year3: 0,
+      year4: 0,
+    },
     partsItems: [
       { name: "制动片", quantity: 2, price: 850, frequency: 2 },
       { name: "滤芯", quantity: 4, price: 280, frequency: 4 },
@@ -102,7 +117,9 @@ export const defaultFormState = {
     ],
   },
   assets: {
+    infrastructurePurchaseValue: 2800000,
     infrastructureValue: 2800000,
+    infrastructureDepreciationYears: 10,
     partsSafetyRate: 0.25,
     tireSafetyRate: 0.25,
   },
@@ -130,6 +147,8 @@ export const emptyFormState = {
     annualDowntimeDays: "",
     expectedTransportVolume: "",
     expectedTransportDays: "",
+    vehicleCountMode: "calculated",
+    manualVehicleCount: "",
     loadVolumeMode: "dimensions",
     cargoBoxLength: "",
     cargoBoxWidth: "",
@@ -172,9 +191,14 @@ export const emptyFormState = {
     depreciationYears: "",
     driverCount: "",
     driverSalary: "",
-    tonKmEnergy: "",
+    technicianCount: "",
+    technicianSalary: "",
+    warehouseManagerCount: "",
+    warehouseManagerSalary: "",
+    laborRoles: [],
+    kmEnergyUse: "",
     energyPrice: "",
-    transportDistance: "",
+    oneWayDistance: "",
     repairHoursPerVisit: "",
     repairUnitPrice: "",
     repairFrequency: {
@@ -184,6 +208,7 @@ export const emptyFormState = {
       year4: "",
     },
     tireUnitPrice: "",
+    tiresPerVehicle: "",
     tireReplacementFrequency: {
       year1: "",
       year2: "",
@@ -194,10 +219,19 @@ export const emptyFormState = {
     managementSalary: "",
     facilityRent: "",
     officeSpend: "",
+    partsCostMode: "formula",
+    annualPartsDirectCost: {
+      year1: "",
+      year2: "",
+      year3: "",
+      year4: "",
+    },
     partsItems: [{ name: "", quantity: "", price: "", frequency: "" }],
   },
   assets: {
+    infrastructurePurchaseValue: "",
     infrastructureValue: "",
+    infrastructureDepreciationYears: 10,
     partsSafetyRate: "",
     tireSafetyRate: "",
   },
@@ -207,6 +241,72 @@ const sum = (values) => values.reduce((total, value) => total + value, 0);
 
 export function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+export function normalizeForms(stored) {
+  const base = deepClone(defaultFormState);
+  const source = stored && typeof stored === "object" ? stored : {};
+  const merged = {
+    ...base,
+    ...source,
+    background: {
+      ...base.background,
+      ...source.background,
+      routeScenarios:
+        source.background?.routeScenarios ?? (source.background?.routeScenario ? [{ scenario: source.background.routeScenario, description: "" }] : base.background.routeScenarios),
+      contacts:
+        source.background?.contacts ??
+        (source.background?.contactName
+          ? [{ name: source.background.contactName, title: source.background.contactTitle ?? "", phone: source.background.contactPhone ?? "" }]
+          : base.background.contacts),
+      organizationStructures:
+        source.background?.organizationStructures ??
+        (source.background?.departmentDivision
+          ? [{ department: source.background.departmentDivision, position: "", headcount: source.background.organizationHeadcount ?? "", averageSalary: "" }]
+          : base.background.organizationStructures),
+    },
+    revenue: {
+      ...base.revenue,
+      ...source.revenue,
+      maintenanceHours:
+        typeof source.revenue?.maintenanceHours === "object"
+          ? { ...base.revenue.maintenanceHours, ...source.revenue.maintenanceHours }
+          : base.revenue.maintenanceHours,
+      partsWaitHours:
+        typeof source.revenue?.partsWaitHours === "object"
+          ? { ...base.revenue.partsWaitHours, ...source.revenue.partsWaitHours }
+          : base.revenue.partsWaitHours,
+      annualMaintenanceCounts: {
+        ...base.revenue.annualMaintenanceCounts,
+        ...source.revenue?.annualMaintenanceCounts,
+      },
+    },
+    expenses: {
+      ...base.expenses,
+      ...source.expenses,
+      repairFrequency: { ...base.expenses.repairFrequency, ...source.expenses?.repairFrequency },
+      tireReplacementFrequency: {
+        ...base.expenses.tireReplacementFrequency,
+        ...source.expenses?.tireReplacementFrequency,
+      },
+      annualPartsDirectCost: {
+        ...base.expenses.annualPartsDirectCost,
+        ...source.expenses?.annualPartsDirectCost,
+      },
+      partsItems: source.expenses?.partsItems?.length ? source.expenses.partsItems : base.expenses.partsItems,
+      laborRoles: source.expenses?.laborRoles?.length ? source.expenses.laborRoles : base.expenses.laborRoles,
+    },
+    assets: {
+      ...base.assets,
+      ...source.assets,
+    },
+  };
+
+  if (!merged.assets.infrastructurePurchaseValue && merged.assets.infrastructureValue) {
+    merged.assets.infrastructurePurchaseValue = merged.assets.infrastructureValue;
+  }
+
+  return merged;
 }
 
 export function resetSectionData(section) {
@@ -320,9 +420,14 @@ export function computeBusinessModel(forms) {
     0,
     safeDivide(expectedDailyDemand, payload * dailyTrips, "vehicleCountDivisor", warnings),
   );
-  const vehicleCount = vehicleCountRaw > 0 ? Math.ceil(vehicleCountRaw) : 0;
+  const vehicleCount =
+    revenue.vehicleCountMode === "manual"
+      ? Math.max(0, Math.round(numberValue(revenue.manualVehicleCount)))
+      : vehicleCountRaw > 0
+        ? Math.ceil(vehicleCountRaw)
+        : 0;
 
-  const partsCost = sum(
+  const formulaPartsCost = sum(
     expenses.partsItems.map(
       (item) =>
         numberValue(item.quantity) * numberValue(item.price) * numberValue(item.frequency),
@@ -354,20 +459,36 @@ export function computeBusinessModel(forms) {
       attendanceRate *
       vehicleCount;
 
-    const depreciationCost = safeDivide(
-      numberValue(expenses.purchasePrice),
-      numberValue(expenses.depreciationYears),
-      "depreciationDivisor",
-      warnings,
-    );
-    const laborCost = numberValue(expenses.driverCount) * numberValue(expenses.driverSalary);
+    const depreciationCost =
+      vehicleCount *
+      safeDivide(
+        numberValue(expenses.purchasePrice),
+        numberValue(expenses.depreciationYears),
+        "depreciationDivisor",
+        warnings,
+      );
+    const laborCost =
+      numberValue(expenses.driverCount) * numberValue(expenses.driverSalary) +
+      numberValue(expenses.technicianCount) * numberValue(expenses.technicianSalary) +
+      numberValue(expenses.warehouseManagerCount) * numberValue(expenses.warehouseManagerSalary) +
+      sum(
+        (expenses.laborRoles ?? []).map(
+          (role) => numberValue(role.count) * numberValue(role.salary),
+        ),
+      );
     const energyCost =
-      numberValue(expenses.tonKmEnergy) *
+      numberValue(expenses.kmEnergyUse) *
       numberValue(expenses.energyPrice) *
-      payload *
-      numberValue(expenses.transportDistance) *
-      annualTripsPerVehicle *
+      2 *
+      numberValue(expenses.oneWayDistance) *
+      dailyTrips *
+      operatingDays *
       vehicleCount;
+    const attendanceAdjustedEnergyCost = energyCost * attendanceRate;
+    const partsCost =
+      expenses.partsCostMode === "direct"
+        ? numberValue(expenses.annualPartsDirectCost[`year${year}`])
+        : formulaPartsCost;
     const repairCost =
       year === 1
         ? 0
@@ -377,6 +498,8 @@ export function computeBusinessModel(forms) {
           vehicleCount;
     const tireCost =
       numberValue(expenses.tireUnitPrice) *
+      numberValue(expenses.tiresPerVehicle) *
+      vehicleCount *
       numberValue(expenses.tireReplacementFrequency[`year${year}`]);
     const operationCost =
       numberValue(expenses.managementCount) * numberValue(expenses.managementSalary) +
@@ -386,16 +509,26 @@ export function computeBusinessModel(forms) {
     const totalExpense =
       depreciationCost +
       laborCost +
-      energyCost +
+      attendanceAdjustedEnergyCost +
       partsCost +
       repairCost +
       tireCost +
       operationCost;
 
-    const infraNetValue = Math.max(0, numberValue(assets.infrastructureValue) * (1 - year / 10));
+    const vehicleNetValue = Math.max(
+      0,
+      vehicleCount *
+        numberValue(expenses.purchasePrice) *
+        (1 - year / Math.max(numberValue(expenses.depreciationYears), 1)),
+    );
+    const infraNetValue = Math.max(
+      0,
+      numberValue(assets.infrastructurePurchaseValue || assets.infrastructureValue) *
+        (1 - year / Math.max(numberValue(assets.infrastructureDepreciationYears), 1)),
+    );
     const partsInventory = partsCost * numberValue(assets.partsSafetyRate);
     const tireInventory = tireCost * numberValue(assets.tireSafetyRate);
-    const totalAssets = infraNetValue + partsInventory + tireInventory;
+    const totalAssets = vehicleNetValue + infraNetValue + partsInventory + tireInventory;
     const annualProfit = annualRevenue - totalExpense;
     const roa = safeDivide(annualProfit, totalAssets, `roaDivisorYear${year}`, warnings) * 100;
 
@@ -407,13 +540,14 @@ export function computeBusinessModel(forms) {
       annualRevenue,
       depreciationCost,
       laborCost,
-      energyCost,
+      energyCost: attendanceAdjustedEnergyCost,
       partsCost,
       repairCost,
       tireCost,
       operationCost,
       totalExpense,
       annualProfit,
+      vehicleNetValue,
       infraNetValue,
       partsInventory,
       tireInventory,
@@ -463,6 +597,12 @@ export function computeBusinessModel(forms) {
     "avgTireInventoryDivisor",
     [],
   );
+  const averageVehicleNetValue = safeDivide(
+    sum(annualRows.map((row) => row.vehicleNetValue)),
+    YEARS.length,
+    "avgVehicleNetValueDivisor",
+    [],
+  );
 
   return {
     warnings,
@@ -478,7 +618,7 @@ export function computeBusinessModel(forms) {
       expectedDailyDemand,
       vehicleCountRaw,
       vehicleCount,
-      partsCost,
+      partsCost: formulaPartsCost,
     },
     annualRows,
     lifecycle: {
@@ -493,6 +633,7 @@ export function computeBusinessModel(forms) {
       averageAttendanceRate,
       averageRepairCost,
       averageTireCost,
+      averageVehicleNetValue,
       averageInfraNetValue,
       averagePartsInventory,
       averageTireInventory,

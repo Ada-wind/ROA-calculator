@@ -8,6 +8,7 @@ import {
   formatMoneyPlain,
   formatPercent,
   getCurrencySymbol,
+  normalizeForms,
   resetSectionData,
 } from "./calculations";
 import { calculatorSections, copy, navItems } from "./content";
@@ -32,8 +33,8 @@ function readStorage(key, fallback) {
 
 function App() {
   const [language, setLanguage] = useState(() => readStorage(storageKeys.language, "zh"));
-  const [savedForms, setSavedForms] = useState(() => readStorage(storageKeys.forms, defaultFormState));
-  const [draftForms, setDraftForms] = useState(() => readStorage(storageKeys.forms, defaultFormState));
+  const [savedForms, setSavedForms] = useState(() => normalizeForms(readStorage(storageKeys.forms, defaultFormState)));
+  const [draftForms, setDraftForms] = useState(() => normalizeForms(readStorage(storageKeys.forms, defaultFormState)));
   const [savedCurrency, setSavedCurrency] = useState(() =>
     readStorage(storageKeys.currency, defaultCurrencySettings),
   );
@@ -141,6 +142,38 @@ function App() {
     }));
   };
 
+  const updateLaborRole = (index, field, value) => {
+    setDraftForms((current) => ({
+      ...current,
+      expenses: {
+        ...current.expenses,
+        laborRoles: (current.expenses.laborRoles ?? []).map((item, itemIndex) =>
+          itemIndex === index ? { ...item, [field]: value } : item,
+        ),
+      },
+    }));
+  };
+
+  const addLaborRole = () => {
+    setDraftForms((current) => ({
+      ...current,
+      expenses: {
+        ...current.expenses,
+        laborRoles: [...(current.expenses.laborRoles ?? []), { name: "", count: "", salary: "" }],
+      },
+    }));
+  };
+
+  const removeLaborRole = (index) => {
+    setDraftForms((current) => ({
+      ...current,
+      expenses: {
+        ...current.expenses,
+        laborRoles: (current.expenses.laborRoles ?? []).filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
+  };
+
   const updateArrayItem = (section, key, index, field, value) => {
     setDraftForms((current) => ({
       ...current,
@@ -239,6 +272,7 @@ function App() {
   const assetTableRows = model.annualRows.map((row) => ({
     id: `asset-${row.year}`,
     year: `Y${row.year}`,
+    vehicleAsset: localizedMoneyPlain(row.vehicleNetValue),
     infrastructure: localizedMoneyPlain(row.infraNetValue),
     partsAsset: localizedMoneyPlain(row.partsInventory),
     tireAsset: localizedMoneyPlain(row.tireInventory),
@@ -257,25 +291,26 @@ function App() {
   ];
 
   const revenueCards = [
-    { title: t.labels.transportPrice, value: localizedMoney(savedForms.revenue.transportPrice || 0), hint: "元/吨" },
-    { title: t.formulaCards.operatingDays, value: `${model.assumptions.operatingDays.toFixed(0)} d`, hint: "365 - 不运营天数" },
-    { title: t.formulaCards.payload, value: `${model.assumptions.payload.toFixed(2)} t`, hint: "单车装载量" },
-    { title: t.formulaCards.dailyTrips, value: model.assumptions.dailyTrips.toFixed(2), hint: "24h - NWH 后计算" },
+    { title: t.labels.transportPrice, value: localizedMoney(savedForms.revenue.transportPrice || 0), hint: t.units.currencyPerTon },
+    { title: t.formulaCards.operatingDays, value: `${model.assumptions.operatingDays.toFixed(0)} d`, hint: language === "zh" ? "365 - 不运营天数" : "365 - hari tidak beroperasi" },
+    { title: t.formulaCards.payload, value: `${model.assumptions.payload.toFixed(2)} t`, hint: language === "zh" ? "单车装载量" : "Muatan per unit" },
+    { title: t.formulaCards.dailyTrips, value: model.assumptions.dailyTrips.toFixed(2), hint: language === "zh" ? "24h - NWH 后计算" : "Dihitung setelah 24 jam - NWH" },
     { title: t.formulaCards.attendanceRate, value: formatPercent(model.lifecycle.averageAttendanceRate), hint: t.notes.averageAnnual },
     { title: t.formulaCards.vehicleCount, value: String(model.assumptions.vehicleCount), hint: t.notes.roundUp },
   ];
 
   const expenseCards = [
-    { title: t.formulaCards.depreciationCost, value: localizedMoney(model.annualRows[0]?.depreciationCost || 0), hint: "年度固定口径" },
-    { title: t.formulaCards.laborCost, value: localizedMoney(model.annualRows[0]?.laborCost || 0), hint: "年度固定口径" },
-    { title: t.formulaCards.energyCost, value: localizedMoney(model.annualRows[0]?.energyCost || 0), hint: "按当前经营量口径" },
-    { title: t.formulaCards.partsCost, value: localizedMoney(model.annualRows[0]?.partsCost || 0), hint: "年度固定口径" },
+    { title: t.formulaCards.depreciationCost, value: localizedMoney(model.annualRows[0]?.depreciationCost || 0), hint: language === "zh" ? "年度固定口径" : "Nilai tahunan tetap" },
+    { title: t.formulaCards.laborCost, value: localizedMoney(model.annualRows[0]?.laborCost || 0), hint: language === "zh" ? "年度固定口径" : "Nilai tahunan tetap" },
+    { title: t.formulaCards.energyCost, value: localizedMoney(model.annualRows[0]?.energyCost || 0), hint: language === "zh" ? "按当前经营量口径" : "Mengikuti volume operasi saat ini" },
+    { title: t.formulaCards.partsCost, value: localizedMoney(model.annualRows[0]?.partsCost || 0), hint: language === "zh" ? "年度固定口径" : "Nilai tahunan tetap" },
     { title: t.formulaCards.repairCost, value: localizedMoney(model.lifecycle.averageRepairCost), hint: t.notes.averageAnnual },
     { title: t.formulaCards.tireCost, value: localizedMoney(model.lifecycle.averageTireCost), hint: t.notes.averageAnnual },
-    { title: t.formulaCards.operationCost, value: localizedMoney(model.annualRows[0]?.operationCost || 0), hint: "年度固定口径" },
+    { title: t.formulaCards.operationCost, value: localizedMoney(model.annualRows[0]?.operationCost || 0), hint: language === "zh" ? "年度固定口径" : "Nilai tahunan tetap" },
   ];
 
   const assetCards = [
+    { title: t.formulaCards.vehicleAsset, value: localizedMoney(model.lifecycle.averageVehicleNetValue), hint: t.notes.averageAnnual },
     { title: t.formulaCards.infraAsset, value: localizedMoney(model.lifecycle.averageInfraNetValue), hint: t.notes.averageAnnual },
     { title: t.formulaCards.partsAsset, value: localizedMoney(model.lifecycle.averagePartsInventory), hint: t.notes.averageAnnual },
     { title: t.formulaCards.tireAsset, value: localizedMoney(model.lifecycle.averageTireInventory), hint: t.notes.averageAnnual },
@@ -285,7 +320,6 @@ function App() {
     exportRoaWorkbook({
       t,
       savedForms,
-      savedCurrency,
       model,
       reportCurrency,
       annualTableRows,
@@ -344,11 +378,9 @@ function App() {
               </div>
             </article>
             <article className="surface-card hero-card">
-              <h2>{t.sectionTitles.roa}</h2>
+              <h2>{t.metrics.lifecycleRoa}</h2>
               <div className="hero-card__highlights hero-card__highlights--stack">
-                <MetricCard label={t.metrics.annualRevenue} value={localizedMoney(model.lifecycle.annualRevenue)} />
-                <MetricCard label={t.metrics.totalExpense} value={localizedMoney(model.lifecycle.totalExpense)} />
-                <MetricCard label={t.metrics.totalAssets} value={localizedMoney(model.lifecycle.totalAssets)} />
+                <LineChart points={chartPoints} />
               </div>
             </article>
           </div>
@@ -426,19 +458,19 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <h4>基础信息</h4>
+                  <h4>{t.headings.basicInfo}</h4>
                   <div className="form-grid">
                     <InputField label={t.labels.customerCompanyName} type="text" value={draftForms.background.customerCompanyName} onChange={(value) => updateSectionValue("background", "customerCompanyName", value)} />
                   </div>
                   <div className="repeater-stack">
-                    {draftForms.background.routeScenarios.map((item, index) => (
+                    {(draftForms.background.routeScenarios ?? []).map((item, index) => (
                       <div className="repeater-row" key={`route-${index}`}>
                         <div className="form-grid">
                           <InputField label={t.labels.routeScenario} type="text" value={item.scenario} onChange={(value) => updateArrayItem("background", "routeScenarios", index, "scenario", value)} />
                           <InputField label={t.labels.routeDescription} type="text" value={item.description} onChange={(value) => updateArrayItem("background", "routeScenarios", index, "description", value)} />
                         </div>
                         <button className="ghost-button ghost-button--danger" type="button" onClick={() => removeArrayItem("background", "routeScenarios", index, { scenario: "", description: "" })}>
-                          删除
+                          {t.remove}
                         </button>
                       </div>
                     ))}
@@ -449,7 +481,7 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <h4>基础设施</h4>
+                  <h4>{t.headings.infraInfo}</h4>
                   <div className="form-grid">
                     <InputField label={t.labels.operationSite} type="text" value={draftForms.background.operationSite} onChange={(value) => updateSectionValue("background", "operationSite", value)} />
                     <InputField label={t.labels.siteLocation} type="text" value={draftForms.background.siteLocation} onChange={(value) => updateSectionValue("background", "siteLocation", value)} />
@@ -457,9 +489,9 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <h4>联络人</h4>
+                  <h4>{t.headings.contacts}</h4>
                   <div className="repeater-stack">
-                    {draftForms.background.contacts.map((item, index) => (
+                    {(draftForms.background.contacts ?? []).map((item, index) => (
                       <div className="repeater-row" key={`contact-${index}`}>
                         <div className="form-grid form-grid--triple">
                           <InputField label={t.labels.contactName} type="text" value={item.name} onChange={(value) => updateArrayItem("background", "contacts", index, "name", value)} />
@@ -467,7 +499,7 @@ function App() {
                           <InputField label={t.labels.contactPhone} type="text" value={item.phone} onChange={(value) => updateArrayItem("background", "contacts", index, "phone", value)} />
                         </div>
                         <button className="ghost-button ghost-button--danger" type="button" onClick={() => removeArrayItem("background", "contacts", index, { name: "", title: "", phone: "" })}>
-                          删除
+                          {t.remove}
                         </button>
                       </div>
                     ))}
@@ -478,9 +510,9 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <h4>客户组织架构</h4>
+                  <h4>{t.headings.organization}</h4>
                   <div className="repeater-stack">
-                    {draftForms.background.organizationStructures.map((item, index) => (
+                    {(draftForms.background.organizationStructures ?? []).map((item, index) => (
                       <div className="repeater-row" key={`org-${index}`}>
                         <div className="form-grid form-grid--quad">
                           <InputField label={t.labels.departmentDivision} type="text" value={item.department} onChange={(value) => updateArrayItem("background", "organizationStructures", index, "department", value)} />
@@ -489,7 +521,7 @@ function App() {
                           <InputField label={t.labels.organizationAverageSalary} type="text" value={item.averageSalary} onChange={(value) => updateArrayItem("background", "organizationStructures", index, "averageSalary", value)} />
                         </div>
                         <button className="ghost-button ghost-button--danger" type="button" onClick={() => removeArrayItem("background", "organizationStructures", index, { department: "", position: "", headcount: "", averageSalary: "" })}>
-                          删除
+                          {t.remove}
                         </button>
                       </div>
                     ))}
@@ -500,7 +532,7 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <h4>客户需求信息</h4>
+                  <h4>{t.headings.customerNeeds}</h4>
                   <div className="form-grid form-grid--triple">
                     <InputField label={t.labels.requestDate} type="date" value={draftForms.background.requestDate} onChange={(value) => updateSectionValue("background", "requestDate", value)} />
                     <InputField label={t.labels.counterpart} type="text" value={draftForms.background.counterpart} onChange={(value) => updateSectionValue("background", "counterpart", value)} />
@@ -547,16 +579,16 @@ function App() {
                 <div className="form-group">
                   <h4>{t.groups.revenuePricing}</h4>
                   <div className="form-grid form-grid--triple">
-                    <InputField label={t.labels.transportPrice} value={draftForms.revenue.transportPrice} onChange={(value) => updateSectionValue("revenue", "transportPrice", value)} suffix="元/吨" />
-                    <InputField label={t.labels.expectedTransportVolume} value={draftForms.revenue.expectedTransportVolume} onChange={(value) => updateSectionValue("revenue", "expectedTransportVolume", value)} suffix="ton" />
-                    <InputField label={t.labels.expectedTransportDays} value={draftForms.revenue.expectedTransportDays} onChange={(value) => updateSectionValue("revenue", "expectedTransportDays", value)} suffix="day" />
+                    <InputField label={t.labels.transportPrice} value={draftForms.revenue.transportPrice} onChange={(value) => updateSectionValue("revenue", "transportPrice", value)} suffix={t.units.currencyPerTon} />
+                    <InputField label={t.labels.expectedTransportVolume} value={draftForms.revenue.expectedTransportVolume} onChange={(value) => updateSectionValue("revenue", "expectedTransportVolume", value)} suffix={t.units.ton} />
+                    <InputField label={t.labels.expectedTransportDays} value={draftForms.revenue.expectedTransportDays} onChange={(value) => updateSectionValue("revenue", "expectedTransportDays", value)} suffix={t.units.day} />
                   </div>
                 </div>
 
                 <div className="form-group">
                   <h4>{t.groups.revenueOperatingDays}</h4>
                   <div className="form-grid">
-                    <InputField label={t.labels.annualDowntimeDays} value={draftForms.revenue.annualDowntimeDays} onChange={(value) => updateSectionValue("revenue", "annualDowntimeDays", value)} suffix="day" />
+                    <InputField label={t.labels.annualDowntimeDays} value={draftForms.revenue.annualDowntimeDays} onChange={(value) => updateSectionValue("revenue", "annualDowntimeDays", value)} suffix={t.units.day} />
                   </div>
                 </div>
 
@@ -591,18 +623,18 @@ function App() {
                 <div className="form-group">
                   <h4>{t.groups.revenueTrips}</h4>
                   <div className="form-grid form-grid--triple">
-                    <InputField label={t.labels.roundTripHours} value={draftForms.revenue.roundTripHours} onChange={(value) => updateSectionValue("revenue", "roundTripHours", value)} suffix="h" />
-                    <InputField label={t.labels.morningMeeting} value={draftForms.revenue.morningMeeting} onChange={(value) => updateSectionValue("revenue", "morningMeeting", value)} suffix="h" />
-                    <InputField label={t.labels.mealTime} value={draftForms.revenue.mealTime} onChange={(value) => updateSectionValue("revenue", "mealTime", value)} suffix="h" />
-                    <InputField label={t.labels.restTime} value={draftForms.revenue.restTime} onChange={(value) => updateSectionValue("revenue", "restTime", value)} suffix="h" />
-                    <InputField label={t.labels.shiftChangeTime} value={draftForms.revenue.shiftChangeTime} onChange={(value) => updateSectionValue("revenue", "shiftChangeTime", value)} suffix="h" />
-                    <InputField label={t.labels.otherOperationIdle} value={draftForms.revenue.otherOperationIdle} onChange={(value) => updateSectionValue("revenue", "otherOperationIdle", value)} suffix="h" />
-                    <InputField label={t.labels.loadingQueue} value={draftForms.revenue.loadingQueue} onChange={(value) => updateSectionValue("revenue", "loadingQueue", value)} suffix="h" />
-                    <InputField label={t.labels.unloadingQueue} value={draftForms.revenue.unloadingQueue} onChange={(value) => updateSectionValue("revenue", "unloadingQueue", value)} suffix="h" />
-                    <InputField label={t.labels.yardQueue} value={draftForms.revenue.yardQueue} onChange={(value) => updateSectionValue("revenue", "yardQueue", value)} suffix="h" />
-                    <InputField label={t.labels.traffic} value={draftForms.revenue.traffic} onChange={(value) => updateSectionValue("revenue", "traffic", value)} suffix="h" />
-                    <InputField label={t.labels.fuelingOrCharging} value={draftForms.revenue.fuelingOrCharging} onChange={(value) => updateSectionValue("revenue", "fuelingOrCharging", value)} suffix="h" />
-                    <InputField label={t.labels.otherTransitIdle} value={draftForms.revenue.otherTransitIdle} onChange={(value) => updateSectionValue("revenue", "otherTransitIdle", value)} suffix="h" />
+                    <InputField label={t.labels.roundTripHours} value={draftForms.revenue.roundTripHours} onChange={(value) => updateSectionValue("revenue", "roundTripHours", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.morningMeeting} value={draftForms.revenue.morningMeeting} onChange={(value) => updateSectionValue("revenue", "morningMeeting", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.mealTime} value={draftForms.revenue.mealTime} onChange={(value) => updateSectionValue("revenue", "mealTime", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.restTime} value={draftForms.revenue.restTime} onChange={(value) => updateSectionValue("revenue", "restTime", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.shiftChangeTime} value={draftForms.revenue.shiftChangeTime} onChange={(value) => updateSectionValue("revenue", "shiftChangeTime", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.otherOperationIdle} value={draftForms.revenue.otherOperationIdle} onChange={(value) => updateSectionValue("revenue", "otherOperationIdle", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.loadingQueue} value={draftForms.revenue.loadingQueue} onChange={(value) => updateSectionValue("revenue", "loadingQueue", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.unloadingQueue} value={draftForms.revenue.unloadingQueue} onChange={(value) => updateSectionValue("revenue", "unloadingQueue", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.yardQueue} value={draftForms.revenue.yardQueue} onChange={(value) => updateSectionValue("revenue", "yardQueue", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.traffic} value={draftForms.revenue.traffic} onChange={(value) => updateSectionValue("revenue", "traffic", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.fuelingOrCharging} value={draftForms.revenue.fuelingOrCharging} onChange={(value) => updateSectionValue("revenue", "fuelingOrCharging", value)} suffix={t.units.hour} />
+                    <InputField label={t.labels.otherTransitIdle} value={draftForms.revenue.otherTransitIdle} onChange={(value) => updateSectionValue("revenue", "otherTransitIdle", value)} suffix={t.units.hour} />
                   </div>
                 </div>
 
@@ -615,6 +647,28 @@ function App() {
 
                 <div className="form-group">
                   <h4>{t.groups.revenueVehicles}</h4>
+                  <div className="form-grid">
+                    <InputField
+                      label={t.labels.vehicleCountMode}
+                      type="select"
+                      value={draftForms.revenue.vehicleCountMode}
+                      onChange={(value) => updateSectionValue("revenue", "vehicleCountMode", value)}
+                      options={[
+                        { value: "calculated", label: t.options.calculated },
+                        { value: "manual", label: t.options.manual },
+                      ]}
+                    />
+                    {draftForms.revenue.vehicleCountMode === "manual" ? (
+                      <InputField
+                        label={t.labels.manualVehicleCount}
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={draftForms.revenue.manualVehicleCount}
+                        onChange={(value) => updateSectionValue("revenue", "manualVehicleCount", value)}
+                      />
+                    ) : null}
+                  </div>
                   <div className="section-note">{t.notes.roundUp}</div>
                 </div>
               </SectionCard>
@@ -642,35 +696,77 @@ function App() {
                   <h4>{t.groups.expenseDepreciation}</h4>
                   <div className="form-grid">
                     <InputField label={t.labels.purchasePrice} value={draftForms.expenses.purchasePrice} onChange={(value) => updateSectionValue("expenses", "purchasePrice", value)} suffix="RMB" />
-                    <InputField label={t.labels.depreciationYears} value={draftForms.expenses.depreciationYears} onChange={(value) => updateSectionValue("expenses", "depreciationYears", value)} suffix="year" />
+                    <InputField label={t.labels.depreciationYears} value={draftForms.expenses.depreciationYears} onChange={(value) => updateSectionValue("expenses", "depreciationYears", value)} suffix={t.units.year} />
                   </div>
                 </div>
 
                 <div className="form-group">
                   <h4>{t.groups.expenseLabor}</h4>
-                  <div className="form-grid">
+                  <div className="section-note">{t.headings.laborBase}</div>
+                  <div className="form-grid form-grid--triple">
                     <InputField label={t.labels.driverCount} value={draftForms.expenses.driverCount} onChange={(value) => updateSectionValue("expenses", "driverCount", value)} />
                     <InputField label={t.labels.driverSalary} value={draftForms.expenses.driverSalary} onChange={(value) => updateSectionValue("expenses", "driverSalary", value)} suffix="RMB" />
+                    <InputField label={t.labels.technicianCount} value={draftForms.expenses.technicianCount} onChange={(value) => updateSectionValue("expenses", "technicianCount", value)} />
+                    <InputField label={t.labels.technicianSalary} value={draftForms.expenses.technicianSalary} onChange={(value) => updateSectionValue("expenses", "technicianSalary", value)} suffix="RMB" />
+                    <InputField label={t.labels.warehouseManagerCount} value={draftForms.expenses.warehouseManagerCount} onChange={(value) => updateSectionValue("expenses", "warehouseManagerCount", value)} />
+                    <InputField label={t.labels.warehouseManagerSalary} value={draftForms.expenses.warehouseManagerSalary} onChange={(value) => updateSectionValue("expenses", "warehouseManagerSalary", value)} suffix="RMB" />
+                  </div>
+                  <div className="section-note">{t.headings.laborExtra}</div>
+                  <div className="repeater-stack">
+                    {(draftForms.expenses.laborRoles ?? []).map((item, index) => (
+                      <div className="repeater-row" key={`labor-${index}`}>
+                        <div className="form-grid form-grid--triple">
+                          <InputField label={t.labels.extraRoleName} type="text" value={item.name} onChange={(value) => updateLaborRole(index, "name", value)} />
+                          <InputField label={t.labels.extraRoleCount} value={item.count} onChange={(value) => updateLaborRole(index, "count", value)} />
+                          <InputField label={t.labels.extraRoleSalary} value={item.salary} onChange={(value) => updateLaborRole(index, "salary", value)} suffix="RMB" />
+                        </div>
+                        <button className="ghost-button ghost-button--danger" type="button" onClick={() => removeLaborRole(index)}>
+                          {t.remove}
+                        </button>
+                      </div>
+                    ))}
+                    <button className="ghost-button" type="button" onClick={addLaborRole}>
+                      {t.repeater.addLaborRole}
+                    </button>
                   </div>
                 </div>
 
                 <div className="form-group">
                   <h4>{t.groups.expenseEnergy}</h4>
                   <div className="form-grid form-grid--triple">
-                    <InputField label={t.labels.tonKmEnergy} value={draftForms.expenses.tonKmEnergy} onChange={(value) => updateSectionValue("expenses", "tonKmEnergy", value)} />
+                    <InputField label={t.labels.kmEnergyUse} value={draftForms.expenses.kmEnergyUse} onChange={(value) => updateSectionValue("expenses", "kmEnergyUse", value)} />
                     <InputField label={t.labels.energyPrice} value={draftForms.expenses.energyPrice} onChange={(value) => updateSectionValue("expenses", "energyPrice", value)} suffix="RMB" />
-                    <InputField label={t.labels.transportDistance} value={draftForms.expenses.transportDistance} onChange={(value) => updateSectionValue("expenses", "transportDistance", value)} suffix="km" />
+                    <InputField label={t.labels.oneWayDistance} value={draftForms.expenses.oneWayDistance} onChange={(value) => updateSectionValue("expenses", "oneWayDistance", value)} suffix={t.units.distance} />
                   </div>
                 </div>
 
                 <div className="form-group">
                   <h4>{t.groups.expenseParts}</h4>
+                  <div className="form-grid">
+                    <InputField
+                      label={t.labels.partsCostMode}
+                      type="select"
+                      value={draftForms.expenses.partsCostMode}
+                      onChange={(value) => updateSectionValue("expenses", "partsCostMode", value)}
+                      options={[
+                        { value: "formula", label: t.options.formula },
+                        { value: "direct", label: t.options.direct },
+                      ]}
+                    />
+                  </div>
+                  {draftForms.expenses.partsCostMode === "direct" ? (
+                    <YearlyFieldGroup
+                      label={t.labels.annualPartsDirectCost}
+                      values={draftForms.expenses.annualPartsDirectCost}
+                      onChange={(yearKey, value) => updateYearlyValue("expenses", "annualPartsDirectCost", yearKey, value)}
+                    />
+                  ) : null}
                   <PartsEditor copy={t.partRow} items={draftForms.expenses.partsItems} onChange={updatePartItem} onAdd={addPartItem} onRemove={removePartItem} />
                 </div>
 
                 <div className="form-group">
                   <h4>{t.groups.expenseRepair}</h4>
-                  <div className="section-note">第 1 年质保期内维修成本按 0 计算</div>
+                  <div className="section-note">{language === "zh" ? "第 1 年质保期内维修成本按 0 计算" : "Biaya perawatan tahun pertama dihitung 0 selama masa garansi"}</div>
                   <div className="form-grid">
                     <InputField label={t.labels.repairHoursPerVisit} value={draftForms.expenses.repairHoursPerVisit} onChange={(value) => updateSectionValue("expenses", "repairHoursPerVisit", value)} suffix="h" />
                     <InputField label={t.labels.repairUnitPrice} value={draftForms.expenses.repairUnitPrice} onChange={(value) => updateSectionValue("expenses", "repairUnitPrice", value)} suffix="RMB" />
@@ -682,6 +778,7 @@ function App() {
                   <h4>{t.groups.expenseTires}</h4>
                   <div className="form-grid">
                     <InputField label={t.labels.tireUnitPrice} value={draftForms.expenses.tireUnitPrice} onChange={(value) => updateSectionValue("expenses", "tireUnitPrice", value)} suffix="RMB" />
+                    <InputField label={t.labels.tiresPerVehicle} value={draftForms.expenses.tiresPerVehicle} onChange={(value) => updateSectionValue("expenses", "tiresPerVehicle", value)} />
                   </div>
                   <YearlyFieldGroup label={t.labels.tireReplacementFrequency} values={draftForms.expenses.tireReplacementFrequency} onChange={(yearKey, value) => updateYearlyValue("expenses", "tireReplacementFrequency", yearKey, value)} />
                 </div>
@@ -717,9 +814,15 @@ function App() {
                 <div className="formula-grid formula-grid--compact">{assetCards.map((card) => <FormulaCard key={card.title} {...card} />)}</div>
 
                 <div className="form-group">
+                  <h4>{t.groups.assetVehicle}</h4>
+                  <div className="section-note">{language === "zh" ? "车辆资产按车数 × 单车采购价格，按车辆折旧年限计算各年期末净值" : "Aset kendaraan dihitung dari jumlah unit × harga per unit, lalu disusutkan menjadi nilai buku akhir tahun"}</div>
+                </div>
+
+                <div className="form-group">
                   <h4>{t.groups.assetInfra}</h4>
                   <div className="form-grid">
-                    <InputField label={t.labels.infrastructureValue} value={draftForms.assets.infrastructureValue} onChange={(value) => updateSectionValue("assets", "infrastructureValue", value)} suffix="RMB" />
+                    <InputField label={t.labels.infrastructurePurchaseValue} value={draftForms.assets.infrastructurePurchaseValue} onChange={(value) => updateSectionValue("assets", "infrastructurePurchaseValue", value)} suffix="RMB" />
+                    <InputField label={t.labels.infrastructureDepreciationYears} value={draftForms.assets.infrastructureDepreciationYears} onChange={(value) => updateSectionValue("assets", "infrastructureDepreciationYears", value)} suffix={t.units.year} />
                   </div>
                   <p className="section-note">{t.notes.fixedInfra}</p>
                 </div>
@@ -727,14 +830,14 @@ function App() {
                 <div className="form-group">
                   <h4>{t.groups.assetParts}</h4>
                   <div className="form-grid">
-                    <InputField label={t.labels.partsSafetyRate} value={draftForms.assets.partsSafetyRate} onChange={(value) => updateSectionValue("assets", "partsSafetyRate", value)} suffix="ratio" />
+                    <InputField label={t.labels.partsSafetyRate} value={draftForms.assets.partsSafetyRate} onChange={(value) => updateSectionValue("assets", "partsSafetyRate", value)} suffix={t.units.ratio} />
                   </div>
                 </div>
 
                 <div className="form-group">
                   <h4>{t.groups.assetTires}</h4>
                   <div className="form-grid">
-                    <InputField label={t.labels.tireSafetyRate} value={draftForms.assets.tireSafetyRate} onChange={(value) => updateSectionValue("assets", "tireSafetyRate", value)} suffix="ratio" />
+                    <InputField label={t.labels.tireSafetyRate} value={draftForms.assets.tireSafetyRate} onChange={(value) => updateSectionValue("assets", "tireSafetyRate", value)} suffix={t.units.ratio} />
                   </div>
                 </div>
               </SectionCard>
@@ -779,7 +882,7 @@ function App() {
                       <SimpleTable
                         columns={[
                           { key: "year", label: t.table.year },
-                          { key: "transportPrice", label: `${t.labels.transportPrice} (${reportCurrency}/吨)` },
+                          { key: "transportPrice", label: `${t.labels.transportPrice} (${reportCurrency}/${t.units.ton})` },
                           { key: "operatingDays", label: t.metrics.operatingDays },
                           { key: "payload", label: t.metrics.payload },
                           { key: "dailyTrips", label: t.metrics.dailyTrips },
@@ -812,6 +915,7 @@ function App() {
                       <SimpleTable
                         columns={[
                           { key: "year", label: t.table.year },
+                          { key: "vehicleAsset", label: `${t.formulaCards.vehicleAsset} (${reportCurrency})` },
                           { key: "infrastructure", label: `${t.table.infrastructure} (${reportCurrency})` },
                           { key: "partsAsset", label: `${t.table.partsAsset} (${reportCurrency})` },
                           { key: "tireAsset", label: `${t.table.tireAsset} (${reportCurrency})` },

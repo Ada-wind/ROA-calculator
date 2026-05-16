@@ -69,15 +69,15 @@ function SimpleTable({ columns, rows, summaryRow }) {
 }
 
 function BarChart({ points }) {
-  const max = Math.max(...points.map((point) => Math.abs(point.value)), 1);
+  const max = Math.max(...points.map((point) => point.value), 1);
 
   return (
     <div className="chart chart--bars">
       {points.map((point) => {
-        const height = `${(Math.abs(point.value) / max) * 100}%`;
+        const height = `${(Math.max(point.value, 0) / max) * 100}%`;
         return (
           <div className="chart__column" key={point.label}>
-            <div className={`chart__bar${point.value < 0 ? " is-negative" : ""}`} style={{ height }} />
+            <div className="chart__bar" style={{ height }} />
             <strong>{formatPercent(point.value)}</strong>
             <span>{point.label}</span>
           </div>

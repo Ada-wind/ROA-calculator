@@ -1,3 +1,5 @@
+import { formatPercent } from "./calculations";
+
 function escapeXml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -36,7 +38,7 @@ function downloadBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-export function exportRoaWorkbook({ t, savedForms, savedCurrency, model, reportCurrency, annualTableRows, annualSummaryRow, revenueTableRows, costTableRows, assetTableRows, lifecycleParamRows }) {
+export function exportRoaWorkbook({ t, savedForms, model, reportCurrency, annualTableRows, annualSummaryRow, revenueTableRows, costTableRows, assetTableRows, lifecycleParamRows }) {
   const backgroundRows = [
     [t.labels.customerCompanyName, savedForms.background.customerCompanyName || ""],
     [t.labels.operationSite, savedForms.background.operationSite || ""],
@@ -50,13 +52,13 @@ export function exportRoaWorkbook({ t, savedForms, savedCurrency, model, reportC
     [t.labels.expectedDeliveryDate, savedForms.background.expectedDeliveryDate || ""],
     [t.labels.specialRequirements, savedForms.background.specialRequirements || ""],
     [""],
-    ["线路 / 场景", "描述"],
+    [t.labels.routeScenario, t.labels.routeDescription],
     ...savedForms.background.routeScenarios.map((item) => [item.scenario || "", item.description || ""]),
     [""],
-    ["联系人", "职务", "电话"],
+    [t.labels.contactName, t.labels.contactTitle, t.labels.contactPhone],
     ...savedForms.background.contacts.map((item) => [item.name || "", item.title || "", item.phone || ""]),
     [""],
-    ["部门", "岗位", "人数", "平均薪资"],
+    [t.labels.departmentDivision, t.labels.organizationPosition, t.labels.organizationHeadcount, t.labels.organizationAverageSalary],
     ...savedForms.background.organizationStructures.map((item) => [
       item.department || "",
       item.position || "",
@@ -66,31 +68,61 @@ export function exportRoaWorkbook({ t, savedForms, savedCurrency, model, reportC
   ];
 
   const revenueRows = [
-    ["公式", "收入 = 运输单价 × 运营天数 × 单车装载量 × 单天车次 × 出勤率 × 车数"],
-    [t.labels.transportPrice, savedForms.revenue.transportPrice || ""],
-    [t.metrics.operatingDays, model.assumptions.operatingDays],
-    [t.metrics.payload, model.assumptions.payload],
-    [t.metrics.dailyTrips, model.assumptions.dailyTrips],
-    [t.metrics.attendanceRate, model.lifecycle.averageAttendanceRate],
-    [t.metrics.vehicleCount, model.assumptions.vehicleCount],
+    ["Formula", t.formulas.revenue],
+    [t.table.parameter, "Y1", "Y2", "Y3", "Y4"],
+    [t.labels.transportPrice, savedForms.revenue.transportPrice || "", savedForms.revenue.transportPrice || "", savedForms.revenue.transportPrice || "", savedForms.revenue.transportPrice || ""],
+    [t.metrics.operatingDays, model.assumptions.operatingDays, model.assumptions.operatingDays, model.assumptions.operatingDays, model.assumptions.operatingDays],
+    [t.metrics.payload, model.assumptions.payload, model.assumptions.payload, model.assumptions.payload, model.assumptions.payload],
+    [t.metrics.dailyTrips, model.assumptions.dailyTrips, model.assumptions.dailyTrips, model.assumptions.dailyTrips, model.assumptions.dailyTrips],
+    [t.labels.maintenanceHours, savedForms.revenue.maintenanceHours.year1, savedForms.revenue.maintenanceHours.year2, savedForms.revenue.maintenanceHours.year3, savedForms.revenue.maintenanceHours.year4],
+    [t.labels.partsWaitHours, savedForms.revenue.partsWaitHours.year1, savedForms.revenue.partsWaitHours.year2, savedForms.revenue.partsWaitHours.year3, savedForms.revenue.partsWaitHours.year4],
+    [t.labels.annualMaintenanceCounts, savedForms.revenue.annualMaintenanceCounts.year1, savedForms.revenue.annualMaintenanceCounts.year2, savedForms.revenue.annualMaintenanceCounts.year3, savedForms.revenue.annualMaintenanceCounts.year4],
+    [t.metrics.attendanceRate, ...model.annualRows.map((row) => formatPercent(row.attendanceRate * 100))],
+    [t.metrics.vehicleCount, model.assumptions.vehicleCount, model.assumptions.vehicleCount, model.assumptions.vehicleCount, model.assumptions.vehicleCount],
+    [t.table.revenue, ...model.annualRows.map((row) => row.annualRevenue)],
   ];
 
   const expenseRows = [
-    ["公式", "支出 = 折旧成本 + 人工成本 + 能源成本 + 配件成本 + 维修成本 + 轮胎成本 + 运维成本"],
-    [t.formulaCards.depreciationCost, model.annualRows[0]?.depreciationCost ?? 0],
-    [t.formulaCards.laborCost, model.annualRows[0]?.laborCost ?? 0],
-    [t.formulaCards.energyCost, model.annualRows[0]?.energyCost ?? 0],
-    [t.formulaCards.partsCost, model.annualRows[0]?.partsCost ?? 0],
-    [t.formulaCards.repairCost, model.lifecycle.averageRepairCost],
-    [t.formulaCards.tireCost, model.lifecycle.averageTireCost],
-    [t.formulaCards.operationCost, model.annualRows[0]?.operationCost ?? 0],
+    ["Formula", t.formulas.expense],
+    [t.table.parameter, "Y1", "Y2", "Y3", "Y4"],
+    [t.labels.purchasePrice, savedForms.expenses.purchasePrice || "", savedForms.expenses.purchasePrice || "", savedForms.expenses.purchasePrice || "", savedForms.expenses.purchasePrice || ""],
+    [t.labels.driverCount, savedForms.expenses.driverCount || "", savedForms.expenses.driverCount || "", savedForms.expenses.driverCount || "", savedForms.expenses.driverCount || ""],
+    [t.labels.driverSalary, savedForms.expenses.driverSalary || "", savedForms.expenses.driverSalary || "", savedForms.expenses.driverSalary || "", savedForms.expenses.driverSalary || ""],
+    [t.labels.technicianCount, savedForms.expenses.technicianCount || "", savedForms.expenses.technicianCount || "", savedForms.expenses.technicianCount || "", savedForms.expenses.technicianCount || ""],
+    [t.labels.technicianSalary, savedForms.expenses.technicianSalary || "", savedForms.expenses.technicianSalary || "", savedForms.expenses.technicianSalary || "", savedForms.expenses.technicianSalary || ""],
+    [t.labels.warehouseManagerCount, savedForms.expenses.warehouseManagerCount || "", savedForms.expenses.warehouseManagerCount || "", savedForms.expenses.warehouseManagerCount || "", savedForms.expenses.warehouseManagerCount || ""],
+    [t.labels.warehouseManagerSalary, savedForms.expenses.warehouseManagerSalary || "", savedForms.expenses.warehouseManagerSalary || "", savedForms.expenses.warehouseManagerSalary || "", savedForms.expenses.warehouseManagerSalary || ""],
+    ...((savedForms.expenses.laborRoles ?? []).flatMap((role) => ([
+      [`${role.name || t.labels.extraRoleName} - ${t.labels.extraRoleCount}`, role.count || "", role.count || "", role.count || "", role.count || ""],
+      [`${role.name || t.labels.extraRoleName} - ${t.labels.extraRoleSalary}`, role.salary || "", role.salary || "", role.salary || "", role.salary || ""],
+    ]))),
+    [t.labels.kmEnergyUse, savedForms.expenses.kmEnergyUse || "", savedForms.expenses.kmEnergyUse || "", savedForms.expenses.kmEnergyUse || "", savedForms.expenses.kmEnergyUse || ""],
+    [t.labels.energyPrice, savedForms.expenses.energyPrice || "", savedForms.expenses.energyPrice || "", savedForms.expenses.energyPrice || "", savedForms.expenses.energyPrice || ""],
+    [t.labels.oneWayDistance, savedForms.expenses.oneWayDistance || "", savedForms.expenses.oneWayDistance || "", savedForms.expenses.oneWayDistance || "", savedForms.expenses.oneWayDistance || ""],
+    [t.labels.repairFrequency, savedForms.expenses.repairFrequency.year1, savedForms.expenses.repairFrequency.year2, savedForms.expenses.repairFrequency.year3, savedForms.expenses.repairFrequency.year4],
+    [t.labels.tireUnitPrice, savedForms.expenses.tireUnitPrice || "", savedForms.expenses.tireUnitPrice || "", savedForms.expenses.tireUnitPrice || "", savedForms.expenses.tireUnitPrice || ""],
+    [t.labels.tiresPerVehicle, savedForms.expenses.tiresPerVehicle || "", savedForms.expenses.tiresPerVehicle || "", savedForms.expenses.tiresPerVehicle || "", savedForms.expenses.tiresPerVehicle || ""],
+    [t.labels.tireReplacementFrequency, savedForms.expenses.tireReplacementFrequency.year1, savedForms.expenses.tireReplacementFrequency.year2, savedForms.expenses.tireReplacementFrequency.year3, savedForms.expenses.tireReplacementFrequency.year4],
+    [t.formulaCards.depreciationCost, ...model.annualRows.map((row) => row.depreciationCost)],
+    [t.formulaCards.laborCost, ...model.annualRows.map((row) => row.laborCost)],
+    [t.formulaCards.energyCost, ...model.annualRows.map((row) => row.energyCost)],
+    [t.formulaCards.partsCost, ...model.annualRows.map((row) => row.partsCost)],
+    [t.formulaCards.repairCost, ...model.annualRows.map((row) => row.repairCost)],
+    [t.formulaCards.tireCost, ...model.annualRows.map((row) => row.tireCost)],
+    [t.formulaCards.operationCost, ...model.annualRows.map((row) => row.operationCost)],
+    [t.table.expense, ...model.annualRows.map((row) => row.totalExpense)],
   ];
 
   const assetRows = [
-    ["公式", "资本 = 自建基础设施 + 配件资产 + 轮胎资产"],
-    [t.formulaCards.infraAsset, model.lifecycle.averageInfraNetValue],
-    [t.formulaCards.partsAsset, model.lifecycle.averagePartsInventory],
-    [t.formulaCards.tireAsset, model.lifecycle.averageTireInventory],
+    ["Formula", t.formulas.asset],
+    [t.table.parameter, "Y1", "Y2", "Y3", "Y4"],
+    [t.labels.infrastructurePurchaseValue, savedForms.assets.infrastructurePurchaseValue || "", savedForms.assets.infrastructurePurchaseValue || "", savedForms.assets.infrastructurePurchaseValue || "", savedForms.assets.infrastructurePurchaseValue || ""],
+    [t.labels.infrastructureDepreciationYears, savedForms.assets.infrastructureDepreciationYears || "", savedForms.assets.infrastructureDepreciationYears || "", savedForms.assets.infrastructureDepreciationYears || "", savedForms.assets.infrastructureDepreciationYears || ""],
+    [t.formulaCards.vehicleAsset, ...model.annualRows.map((row) => row.vehicleNetValue)],
+    [t.formulaCards.infraAsset, ...model.annualRows.map((row) => row.infraNetValue)],
+    [t.formulaCards.partsAsset, ...model.annualRows.map((row) => row.partsInventory)],
+    [t.formulaCards.tireAsset, ...model.annualRows.map((row) => row.tireInventory)],
+    [t.table.assets, ...model.annualRows.map((row) => row.totalAssets)],
   ];
 
   const roaSheetRows = [
@@ -99,7 +131,7 @@ export function exportRoaWorkbook({ t, savedForms, savedCurrency, model, reportC
     ...lifecycleParamRows.map((row) => [row.parameter, row.value]),
     [""],
     [t.table.revenueModel],
-    [t.table.year, `${t.labels.transportPrice} (${reportCurrency}/吨)`, t.metrics.operatingDays, t.metrics.payload, t.metrics.dailyTrips, t.metrics.attendanceRate, t.metrics.vehicleCount, `${t.table.revenue} (${reportCurrency})`],
+    [t.table.year, `${t.labels.transportPrice} (${reportCurrency}/${t.units.ton})`, t.metrics.operatingDays, t.metrics.payload, t.metrics.dailyTrips, t.metrics.attendanceRate, t.metrics.vehicleCount, `${t.table.revenue} (${reportCurrency})`],
     ...revenueTableRows.map((row) => [row.year, row.transportPrice, row.operatingDays, row.payload, row.dailyTrips, row.attendanceRate, row.vehicleCount, row.revenue]),
     [""],
     [t.table.costModel],
@@ -107,8 +139,8 @@ export function exportRoaWorkbook({ t, savedForms, savedCurrency, model, reportC
     ...costTableRows.map((row) => [row.year, row.depreciationCost, row.laborCost, row.energyCost, row.partsCost, row.repairCost, row.tireCost, row.operationCost, row.totalExpense]),
     [""],
     [t.table.assetModel],
-    [t.table.year, `${t.table.infrastructure} (${reportCurrency})`, `${t.table.partsAsset} (${reportCurrency})`, `${t.table.tireAsset} (${reportCurrency})`, `${t.table.assets} (${reportCurrency})`],
-    ...assetTableRows.map((row) => [row.year, row.infrastructure, row.partsAsset, row.tireAsset, row.assets]),
+    [t.table.year, `${t.formulaCards.vehicleAsset} (${reportCurrency})`, `${t.table.infrastructure} (${reportCurrency})`, `${t.table.partsAsset} (${reportCurrency})`, `${t.table.tireAsset} (${reportCurrency})`, `${t.table.assets} (${reportCurrency})`],
+    ...assetTableRows.map((row) => [row.year, row.vehicleAsset, row.infrastructure, row.partsAsset, row.tireAsset, row.assets]),
     [""],
     [t.table.roaModel],
     [t.table.year, `${t.table.revenue} (${reportCurrency})`, `${t.table.expense} (${reportCurrency})`, `${t.table.assets} (${reportCurrency})`, t.table.roa, t.metrics.lifecycleRoa],
@@ -136,6 +168,5 @@ ${worksheetXml(t.sectionTitles.roa, roaSheetRows)}
     type: "application/vnd.ms-excel;charset=utf-8;",
   });
   const dateStamp = new Date().toISOString().slice(0, 10);
-  downloadBlob(blob, `roa-analysis-${savedCurrency.selectedCurrency}-${dateStamp}.xls`);
+  downloadBlob(blob, `roa-analysis-${reportCurrency}-${dateStamp}.xls`);
 }
-import { formatPercent } from "./calculations";
